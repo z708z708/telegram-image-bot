@@ -42,12 +42,23 @@ const server = app.listen(PORT, async () => {
   if (serverUrl) {
     try {
       const webhookUrl = `${serverUrl}/bot${token}`;
-      await bot.setWebHook(webhookUrl);
-      console.log(`Webhook set to: ${webhookUrl}`);
+
+      // First, try to get current webhook info
+      const webhookInfo = await bot.getWebHookInfo();
+      console.log('Current webhook info:', webhookInfo);
+
+      // Only set webhook if it's not already set correctly or if it failed previously
+      if (webhookInfo.url !== webhookUrl) {
+        await bot.setWebHook(webhookUrl);
+        console.log(`Webhook set to: ${webhookUrl}`);
+      } else {
+        console.log(`Webhook already correctly set to: ${webhookUrl}`);
+      }
     } catch (error) {
       console.error('Error setting webhook:', error.message);
-      console.log('Falling back to polling mode...');
-      bot.startPolling();
+      // Don't start polling if webhook fails - let the web server continue to run
+      // The webhook might be set on another instance
+      console.log('Webhook could not be set, keeping server running for potential webhook delivery...');
     }
   } else {
     console.log('SERVER_URL not set. Please set this environment variable for webhooks to work properly.');
