@@ -1,19 +1,55 @@
 require('dotenv').config();
 const TelegramBot = require('node-telegram-bot-api');
-const https = require('https');
-const http = require('http');
+const express = require('express');
+const bodyParser = require('body-parser');
 
 const token = process.env.TELEGRAM_BOT_TOKEN;
-const bot = new TelegramBot(token, { polling: true });
+const serverUrl = process.env.SERVER_URL; // This should be set to your Render service URL
 
-// HTTP сервер для Render.com (чтобы не было ошибки "No open ports")
-const PORT = process.env.PORT || 3000;
-const server = http.createServer((req, res) => {
-  res.writeHead(200, { 'Content-Type': 'text/plain' });
-  res.end('Telegram bot is running!');
+// Create bot instance without polling
+const bot = new TelegramBot(token);
+
+// Create Express app
+const app = express();
+app.use(bodyParser.json());
+
+// Webhook route for Telegram
+app.post(`/bot${token}`, async (req, res) => {
+  try {
+    // Process the Telegram update
+    await bot.processUpdate(req.body);
+    res.status(200).json({ status: 'ok' });
+  } catch (error) {
+    console.error('Error processing update:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
-server.listen(PORT, () => {
-  console.log(`Health check server running on port ${PORT}`);
+
+// Health check route
+app.get('/', (req, res) => {
+  res.status(200).json({ status: 'ok', message: 'Telegram bot is running!' });
+});
+
+// Set webhook when server starts
+const PORT = process.env.PORT || 3000;
+
+// Start the server
+const server = app.listen(PORT, async () => {
+  console.log(`Server is running on port ${PORT}`);
+
+  // Set the webhook URL for the bot
+  if (serverUrl) {
+    try {
+      const webhookUrl = `${serverUrl}/bot${token}`;
+      await bot.setWebHook(webhookUrl);
+      console.log(`Webhook set to: ${webhookUrl}`);
+    } catch (error) {
+      console.error('Error setting webhook:', error.message);
+    }
+  } else {
+    console.log('SERVER_URL not set. Please set this environment variable for webhooks to work properly.');
+    console.log('For now, the bot will run without webhook (not recommended for production).');
+  }
 });
 
 console.log('Bot started with Pollinations AI (free)...');
@@ -24,7 +60,7 @@ bot.onText(/\/start/, (msg) => {
 
 bot.on('message', async (msg) => {
   if (msg.text && msg.text.startsWith('/')) return;
-  
+
   const chatId = msg.chat.id;
   const description = msg.text;
 
@@ -57,4 +93,8 @@ bot.on('message', async (msg) => {
 
 process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
 });
