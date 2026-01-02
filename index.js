@@ -1,9 +1,20 @@
 require('dotenv').config();
 const TelegramBot = require('node-telegram-bot-api');
 const https = require('https');
+const http = require('http');
 
 const token = process.env.TELEGRAM_BOT_TOKEN;
 const bot = new TelegramBot(token, { polling: true });
+
+// HTTP сервер для Render.com (чтобы не было ошибки "No open ports")
+const PORT = process.env.PORT || 3000;
+const server = http.createServer((req, res) => {
+  res.writeHead(200, { 'Content-Type': 'text/plain' });
+  res.end('Telegram bot is running!');
+});
+server.listen(PORT, () => {
+  console.log(`Health check server running on port ${PORT}`);
+});
 
 console.log('Bot started with Pollinations AI (free)...');
 
