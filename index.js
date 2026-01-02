@@ -45,10 +45,13 @@ const server = app.listen(PORT, async () => {
       console.log(`Webhook set to: ${webhookUrl}`);
     } catch (error) {
       console.error('Error setting webhook:', error.message);
+      console.log('Falling back to polling mode...');
+      bot.startPolling();
     }
   } else {
     console.log('SERVER_URL not set. Please set this environment variable for webhooks to work properly.');
-    console.log('For now, the bot will run without webhook (not recommended for production).');
+    console.log('Starting in polling mode...');
+    bot.startPolling();
   }
 });
 
