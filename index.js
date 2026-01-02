@@ -2,6 +2,7 @@ require('dotenv').config();
 const TelegramBot = require('node-telegram-bot-api');
 const express = require('express');
 const bodyParser = require('body-parser');
+const fetch = require('node-fetch');
 
 const token = process.env.TELEGRAM_BOT_TOKEN;
 const serverUrl = process.env.SERVER_URL; // This should be set to your Render service URL
@@ -14,10 +15,10 @@ const app = express();
 app.use(bodyParser.json());
 
 // Webhook route for Telegram
-app.post(`/bot${token}`, async (req, res) => {
+app.post(`/bot${token}`, (req, res) => {
   try {
     // Process the Telegram update
-    await bot.processUpdate(req.body);
+    bot.processUpdate(req.body);
     res.status(200).json({ status: 'ok' });
   } catch (error) {
     console.error('Error processing update:', error);
@@ -81,6 +82,12 @@ bot.on('message', async (msg) => {
 
     console.log(`Generating image for: "${description}"`);
     console.log(`Image URL: ${imageUrl}`);
+
+    // Попробуем сначала получить изображение, чтобы проверить его доступность
+    const response = await fetch(imageUrl);
+    if (!response.ok) {
+      throw new Error(`Image generation failed with status: ${response.status}`);
+    }
 
     await bot.deleteMessage(chatId, loadingMsg.message_id);
 
