@@ -34,32 +34,40 @@ app.get('/', (req, res) => {
 // Set webhook when server starts
 const PORT = process.env.PORT || 3000;
 
+// Function to properly set webhook
+async function setupWebhook() {
+  try {
+    // First, try to get current webhook info
+    const webhookInfo = await bot.getWebHookInfo();
+    console.log('Current webhook info:', webhookInfo);
+
+    const webhookUrl = `${serverUrl}/bot${token}`;
+
+    // If there's an existing webhook that's different, or if there's an active webhook
+    if (webhookInfo.url && webhookInfo.url !== webhookUrl) {
+      // Try to remove the existing webhook by setting an empty one
+      await bot.setWebHook(''); // Remove existing webhook
+      console.log('Removed existing webhook');
+    }
+
+    // Now set the new webhook
+    await bot.setWebHook(webhookUrl);
+    console.log(`Webhook set to: ${webhookUrl}`);
+  } catch (error) {
+    console.error('Error setting webhook:', error.message);
+    // Don't start polling if webhook fails - let the web server continue to run
+    // The webhook might be set on another instance
+    console.log('Webhook could not be set, keeping server running for potential webhook delivery...');
+  }
+}
+
 // Start the server
 const server = app.listen(PORT, async () => {
   console.log(`Server is running on port ${PORT}`);
 
   // Set the webhook URL for the bot
   if (serverUrl) {
-    try {
-      const webhookUrl = `${serverUrl}/bot${token}`;
-
-      // First, try to get current webhook info
-      const webhookInfo = await bot.getWebHookInfo();
-      console.log('Current webhook info:', webhookInfo);
-
-      // Only set webhook if it's not already set correctly or if it failed previously
-      if (webhookInfo.url !== webhookUrl) {
-        await bot.setWebHook(webhookUrl);
-        console.log(`Webhook set to: ${webhookUrl}`);
-      } else {
-        console.log(`Webhook already correctly set to: ${webhookUrl}`);
-      }
-    } catch (error) {
-      console.error('Error setting webhook:', error.message);
-      // Don't start polling if webhook fails - let the web server continue to run
-      // The webhook might be set on another instance
-      console.log('Webhook could not be set, keeping server running for potential webhook delivery...');
-    }
+    await setupWebhook();
   } else {
     console.log('SERVER_URL not set. Please set this environment variable for webhooks to work properly.');
     console.log('Starting in polling mode...');
